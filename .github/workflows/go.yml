@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27"
-      - run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.0 ./...
+      - run: go run github.com/securego/gosec/v2/cmd/gosec@v2.29.1-0.20261005092323-d2b649ec0182 ./...
   code-vulnerability:
     runs-on: ubuntu-latest
     steps:
