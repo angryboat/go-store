@@ -1,0 +1,71 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request: {}
+  workflow_call: {}
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  test:
+    strategy:
+      matrix:
+        go-version: ["1.27"]
+        runner-version: ["ubuntu-26.04", "ubuntu-26.04-arm"]
+    runs-on: ${{ matrix.runner-version }}
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:password@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go-version }}
+      - run: make test
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27"
+      - run: go vet ./...
+  code-formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27"
+      - name: Check Formatting
+        run: |-
+          unformatted="$(gofmt -s -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Files are not properly formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+  nil-checking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27"
+      - run: go install go.uber.org/nilaway/cmd/nilaway@v0.0.0-20260918162853-acb8859b9031
+      - run: nilaway ./...
