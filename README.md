@@ -1,7 +1,8 @@
 # go-store
 
 Forward-only SQL migrations for Go. Migrations are plain SQL files, applied in
-order and recorded in a `schema_migrations` table.
+order and recorded in a `schema_migrations` table. The `pgdo` package also
+provides a shared pgx pool to a samber/do injector.
 
 Requires Go 1.27+. The `pg` adapter uses pgx and is tested against
 PostgreSQL 18.
@@ -70,6 +71,26 @@ To build migrations in code instead of from files, implement
   anything touches the database.
 - **Concurrency**: callers serialize on one advisory lock. The lock is
   released when `MigrateUp` returns, even if `ctx` was cancelled.
+
+## Dependency injection
+
+`pgdo.PoolProvider` registers a shared `*pgxpool.Pool` with a
+[samber/do](https://github.com/samber/do) injector. It lives in its own
+package, so importing `pg` doesn't pull in `do`. The pool opens and pings the
+database on first invoke, and closes when the injector shuts down.
+
+```go
+injector := do.New(pgdo.PoolProvider)
+defer injector.Shutdown()
+
+pool, err := do.Invoke[*pgxpool.Pool](injector)
+```
+
+The connection string comes from `DATABASE_URL`. If it's unset, invoking the
+pool fails with `pgdo.ErrNoDatabaseURL`. Override it with
+`do.OverrideValue(injector, pgdo.PoolConnection(url))`, and the context used
+to open and ping the pool with `do.OverrideNamedValue(injector,
+pgdo.PoolSetupContext, ctx)`.
 
 ## Development
 
