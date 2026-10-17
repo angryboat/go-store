@@ -4,6 +4,7 @@ package pgdo
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,6 +82,7 @@ type poolCloser struct {
 }
 
 func (c *poolCloser) Shutdown() {
+	slog.Debug("PGX Pool Shutting Down")
 	c.pool.Close()
 }
 
